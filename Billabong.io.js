@@ -1,3 +1,7 @@
+/**
+ * Variable globale qui définit les 8 cases sur lesquelles on n'a pas le
+ * droit d'aller.
+ **/
 var billabong = [];
 for(var ii = 6; ii <= 9; ++ii) {
 	for(var jj = 6; jj <= 7; ++jj) {
@@ -5,40 +9,61 @@ for(var ii = 6; ii <= 9; ++ii) {
 	}
 }
 
-function Recherche(x,y,found,error,next) {
-	this.x = x;
-	this.y = y;
-	this.found = found;
-	this.error = error;
-	this.next = next;
-}
-
-
+/**
+ * Constructeur pour les objets de type Direction
+ * (int,int,int)
+ **/
 function Direction(dx,dy,distance) {
 	this.dx = dx;
 	this.dy = dy;
 	this.distance = distance;
 }
 
-function testBillabongPossibilites(x,y,directions) {
-	return directions.filter(function(dir) {
-		return !billabong.some(function(b) { return b.x == x+(dir.dx * dir.distance) && b.y == y + (dir.dy * dir.distance);});
-	});
-}
-function testPossibilites(x,y,directions,pions) {
-	//Test if billabong
-	return directions.filter(function(dir) {
-		return
-			!billabong.some(function(b) { return b.x == x+(dir.dx * dir.distance) && b.y == y + (dir.dy * dir.distance);})
-		&& !pions.some(function(p) { return p.x == x+(dir.dx * dir.distance) && p.y == y + (dir.dy * dir.distance);});
-	});
-}
-
+/**
+ * Fonction qui recherche le premier pion dans une direction.
+ * Elle peut être récursive. L'idée est de rechercher pour chaque
+ * direction (améliorer cet objet, il peut manquer des trucs) si la case
+ * à la distance N est atteignable / est un pion. Si on a trouvé un
+ * pion, on garde la direction (qu'on flag comme OK). Si on tombe sur un
+ * empêchement (bord de terrain ou case du billabong), on supprime la
+ * direction. Si on tombe sur une case vide, on garde la direction, en
+ * mode NOK (ou pas trouvé) et on augmente sa distance.
+ *
+ *
+ * Type : int -> int -> [Direction] -> [Direction]
+ **/
 function cherchePremierPion(x,y,directions) {
 	//TODO prendre autour de (x,y), et agrandir la recherche jusqu'à
 	//trouver un pion ou ne plus pouvoir avancer.
 }
 
+/**
+ *	À partir d'un tableau de directions qui indiquent des pions, il faut
+ *	tester si on peut sauter par dessus le pion. En gros, il faut suivre
+ *	le chemin de la `direction` après le pion pour voir s'il y a assez de
+ *	place pour sauter et s'il n'y a pas un autre pion sur le chemin
+ *
+ *	L'idée si possible serait de ressortir une liste de coordonnées
+ *	atteignables par un saut.
+ *
+ *	Type : int -> int -> [ioVec] -> [ioVec]
+ */
+function isSautPossible(x,y,pionsASauter) {
+}
+
+/**
+ * À finir.
+ * Fonction qui retourne vrai si un chemin est possible entre deux
+ * coordonnées. C'est possible si les points sont alignés
+ * horizontalement, verticalement ou en diagonale.
+ *
+ * Pour l'instant on vérifie qu'il n'y a pas de case de billabong entre
+ * les deux. Il faut l'améliorer pour y ajouter des pions. Voire
+ * directement passer une liste de cases qui ne doivent pas s'y trouver,
+ * plutôt que de faire ça avec la variable globale billabong
+ *
+ * Type : ioVec -> ioVec -> bool
+ **/
 function isLigneDroitePossible(coords1,coords2) {
 	var diffX = coords2.x - coords1.x;
 	var diffY = coords2.y - coords1.y;
@@ -59,6 +84,13 @@ function isLigneDroitePossible(coords1,coords2) {
 	return true;
 }
 
+/**
+ * À partir de coordonnées, trouver toutes les possibilités pour un
+ * saut. On a les cellules (un tableau) et les coordonnées de tous les
+ * pions (peut-être avec celles des cases du billabong)
+ *
+ * Type : ioVec -> [[Object]] -> [ioVec]
+ **/
 function getSingleJumpDestinations(coordPion,cells,allPions) {
 
 }
