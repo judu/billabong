@@ -129,11 +129,8 @@ function Billabong(io) {
 	io.addObj(new iio.ioLine(400,400,400,700).setStrokeStyle('#0000EE').setLineWidth(8));
 
 	io.canvas.addEventListener('mousedown',function(event) {
+		//console.log(grid.getCellAt(io.getEventPosition(event))); // Exemple de log
 		var cellPos = grid.getCellCenter(io.getEventPosition(event),true);
 		io.addObj(new iio.ioCircle(cellPos, 13).setFillStyle('#E00000').setStrokeStyle('#A00000').setLineWidth(3));
 	});
-	alert("true: " + isLigneDroitePossible({x:0,y:0},{x:13,y:0}));
-	alert("true: " + isLigneDroitePossible({x:0,y:0},{x:3,y:3}));
-	alert("false: " + isLigneDroitePossible({x:0,y:0},{x:3,y:5}));
-	alert("false: " + isLigneDroitePossible({x:0,y:0},{x:13,y:13}));
 }
