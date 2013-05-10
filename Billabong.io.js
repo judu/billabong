@@ -1,4 +1,59 @@
 /**
+ * Absence de valeur
+ */
+function None(){}
+
+/**
+ * Renvoie une Option de la valeur si Some. Ou None.
+ */
+None.prototype.map = function(f) {
+	return new None();
+}
+
+/**
+ * Exécute f1 si None, f2(obj) si Some
+ */
+None.prototype.fold = function(f1, f2) {
+	return (typeof(f1) === "function" ? f1() : f1);
+}
+
+None.prototype.getOrElse = function(other) {
+	return other;
+}
+
+/**
+ * vrai si None, faux si Some
+ */
+None.prototype.isEmpty = true;
+
+/**
+ * Encapsule un objet
+ */
+function Some(o) {
+	this.obj = o;
+}
+
+/**
+ * Retourne un Some du résultat de la fonction appliquée à l'objet encapsulé
+ */
+Some.prototype.map = function(f) {
+	return new Some(f(this.obj));
+}
+
+/**
+ * Applique f2 à l'objet encapsulé
+ */
+Some.prototype.fold = function(f1, f2) {
+	return f2(this.obj);
+}
+
+Some.prototype.getOrElse = function() {
+	return this.obj;
+}
+
+Some.prototype.isEmpty = false
+
+/**
  * Variable globale qui définit les 8 cases sur lesquelles on n'a pas le
  * droit d'aller.
  **/
@@ -8,6 +63,15 @@ for(var ii = 6; ii <= 9; ++ii) {
 		billabong.push({x:ii,y:jj});
 	}
 }
+
+var couleurs = {
+	BLEU : "#005DFE",
+	ROUGE : "#FE0000",
+	VERT : "#0AB015",
+	JAUNE : "#FEDC00"
+}
+
+var grid;
 
 /**
  * Constructeur pour les objets de type Direction
@@ -20,6 +84,18 @@ function Direction(dx,dy,distance) {
 }
 
 /**
+ * Constructeur pour les objets de type Pion
+ * couleur = la couleur du pion
+ * ruisseau = vrai si le pion a passé le ruisseau
+ * (string,bool)
+ **/
+function Pion(couleur,ruisseau) {
+	this.couleur = couleur;
+	this.ruisseau = ruisseau;
+}
+
+
+/**
  * Fonction qui recherche le premier pion dans une direction.
  * Elle peut être récursive. L'idée est de rechercher pour chaque
  * direction (améliorer cet objet, il peut manquer des trucs) si la case
@@ -30,11 +106,43 @@ function Direction(dx,dy,distance) {
  * mode NOK (ou pas trouvé) et on augmente sa distance.
  *
  *
- * Type : int -> int -> [Direction] -> [Direction]
+ * Type : int -> int -> Direction -> Option[Direction]
  **/
-function cherchePremierPion(x,y,directions) {
+function cherchePremierPion(x,y,direction) {
 	//TODO prendre autour de (x,y), et agrandir la recherche jusqu'à
 	//trouver un pion ou ne plus pouvoir avancer.
+	var xtemp = x + (direction.dx * direction.distance);
+	var ytemp = y + (direction.dy * direction.distance);
+	if (isInterdite(xtemp, ytemp)){
+		//STOP
+		return new None();
+	} else if !(isVide(xtemp,ytemp)){
+		return new Some(direction);
+	} else {
+		return cherchePremierPion(x,y, new Direction(direction.dx, direction.dy, direction.distance+1));
+	}
+}
+
+directions.map(function(d) {return cherchePremierPion(x,y,d);}).filter(function(o) {return !o.isEmpty;})
+
+/**
+ * Fonction qui vérifie si une case est utilisable ou non.
+ * Renvoie vrai si on dépasse le bord ou si on est dans l'eau.
+ *
+ * Type : int -> int -> bool
+**/
+function isInterdite(x,y){
+	return ((x<0 || y<0 || x>17 || y>15) || (x>=6 && x<=9 && y>=6 && y<=7));
+}
+
+/**
+ * Fonction qui vérifie si une case est occupée ou non.
+ * Renvoie vrai si la case est vide.
+ *
+ * Type : int -> int -> bool
+**/
+function isVide(x,y){
+	return (typeof(grid.cells[y][x].pion) === "undefined");
 }
 
 /**
