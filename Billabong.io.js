@@ -1,68 +1,17 @@
 /**
- * Absence de valeur
- */
-function None(){}
-
-/**
- * Renvoie une Option de la valeur si Some. Ou None.
- */
-None.prototype.map = function(f) {
-	return new None();
-}
-
-/**
- * Exécute f1 si None, f2(obj) si Some
- */
-None.prototype.fold = function(f1, f2) {
-	return (typeof(f1) === "function" ? f1() : f1);
-}
-
-None.prototype.getOrElse = function(other) {
-	return other;
-}
-
-/**
- * vrai si None, faux si Some
- */
-None.prototype.isEmpty = true;
-
-/**
- * Encapsule un objet
- */
-function Some(o) {
-	this.obj = o;
-}
-
-/**
- * Retourne un Some du résultat de la fonction appliquée à l'objet encapsulé
- */
-Some.prototype.map = function(f) {
-	return new Some(f(this.obj));
-}
-
-/**
- * Applique f2 à l'objet encapsulé
- */
-Some.prototype.fold = function(f1, f2) {
-	return f2(this.obj);
-}
-
-Some.prototype.getOrElse = function() {
-	return this.obj;
-}
-
-Some.prototype.isEmpty = false
-
-/**
  * Variable globale qui définit les 8 cases sur lesquelles on n'a pas le
  * droit d'aller.
  **/
-var billabong = [];
-for(var ii = 6; ii <= 9; ++ii) {
-	for(var jj = 6; jj <= 7; ++jj) {
-		billabong.push({x:ii,y:jj});
+var billabong = {
+	start : {
+		x : 6,
+		y : 6
+	},
+	end : {
+		x : 9,
+		y : 7
 	}
-}
+};
 
 var couleurs = {
 	BLEU : "#005DFE",
@@ -81,6 +30,16 @@ function Direction(dx,dy,distance) {
 	this.dx = dx;
 	this.dy = dy;
 	this.distance = distance;
+}
+
+function initialiseDirections() {
+	var dirs = [];
+	for(var x = -1; x <= 1; ++x) {
+		for(var y = -1; y <= 1; ++y) {
+			dirs.push(new Direction(x,y,0));
+		}
+	}
+	return dirs;
 }
 
 /**
@@ -116,14 +75,12 @@ function cherchePremierPion(x,y,direction) {
 	if (isInterdite(xtemp, ytemp)){
 		//STOP
 		return new None();
-	} else if !(isVide(xtemp,ytemp)){
+	} else if (!isVide(xtemp,ytemp)) {
 		return new Some(direction);
 	} else {
 		return cherchePremierPion(x,y, new Direction(direction.dx, direction.dy, direction.distance+1));
 	}
 }
-
-directions.map(function(d) {return cherchePremierPion(x,y,d);}).filter(function(o) {return !o.isEmpty;})
 
 /**
  * Fonction qui vérifie si une case est utilisable ou non.
@@ -142,7 +99,7 @@ function isInterdite(x,y){
  * Type : int -> int -> bool
 **/
 function isVide(x,y){
-	return (typeof(grid.cells[y][x].pion) === "undefined");
+	return (typeof(grid.cells[x][y].pion) === "undefined");
 }
 
 /**
@@ -154,9 +111,22 @@ function isVide(x,y){
  *	L'idée si possible serait de ressortir une liste de coordonnées
  *	atteignables par un saut.
  *
- *	Type : int -> int -> [ioVec] -> [ioVec]
+ *	Type : int -> int -> [Direction] -> [ioVec]
  */
 function isSautPossible(x,y,pionsASauter) {
+	return pionsASauter.flatMap(function(d){
+		var xpion = x + (direction.dx * direction.distance);
+		var ypion = y + (direction.dy * direction.distance);
+		for(var a = 1; a <= d.distance; ++a) {
+			var xtemp = xpion + (direction.dx * a);
+			var ytemp = ypion + (direction.dy * a);
+			if (isInterdite(xtemp, ytemp) || !(isVide(xtemp,ytemp))){
+				//STOP
+				return new None();
+			}
+		}
+		return Some(new iio.Vec(xtemp,ytemp));
+	});
 }
 
 /**
@@ -200,23 +170,20 @@ function isLigneDroitePossible(coords1,coords2) {
  * Type : ioVec -> [[Object]] -> [ioVec]
  **/
 function getSingleJumpDestinations(coordPion,cells,allPions) {
-
+	return initialiseDirections().flatMap(function(d) { return cherchePremierPion(coordPion.x,coordPion.y,d);}).flatMap(function(d) {return isSautPossible(coordPion.x,coordPion.y,d)});
 }
 
-function Billabong(io) {
-	var grid = new iio.ioGrid(0,0,16,14,50); // posX,posY,width,height,cellSize
-	grid.setStrokeStyle('#201000');
-	grid.setLineWidth(2);
+function drawGrid(io,grid) {
 	io.addObj(grid);
-	var eau = new iio.ioRect(400,350,200,100);
+	var eau = new iio.Rect(400,350,200,100);
 	eau.setFillStyle('#000099');
 	eau.setStrokeStyle('#0000EE');
 	eau.setLineWidth(3);
-
 	var color1 = 'rgba(61,40,25,0.8)';
 	var color2 = 'rgba(255,234,197,0.8)';
-	for(var y = 0; y < 14; ++y) {
-		for(var x = y%2; x < 16; x += 2) {
+	// Make it look like a chessboard.
+	for(var y = 0; y < grid.R; ++y) {
+		for(var x = y%2; x < grid.C; x += 2) {
 			var x2;
 			if(x%2 == 0) {
 				x2 = x+1;
@@ -224,21 +191,58 @@ function Billabong(io) {
 				x2 = x-1;
 			}
 			if(!(y >= 6 && y <= 7 && x >= 6 && x <= 9))
-				io.addObj(new iio.ioRect(grid.getCellCenter(x,y,false),48).setFillStyle(color1));
+				io.addObj(new iio.Rect(grid.getCellCenter(x,y,false),48).setFillStyle(color1));
 			if(x2 >= 0 && x2 < 16 && !(y >= 6 && y <= 7 && x >= 6 && x <= 9))
-				io.addObj(new iio.ioRect(grid.getCellCenter(x2,y,false),48).setFillStyle(color2));
+				io.addObj(new iio.Rect(grid.getCellCenter(x2,y,false),48).setFillStyle(color2));
 		}
 	}
 	io.addObj(eau);
-	io.addObj(new iio.ioLine(00,00,800,00).setLineWidth(4));
-	io.addObj(new iio.ioLine(800,00,800,700).setLineWidth(4));
-	io.addObj(new iio.ioLine(00,700,800,700).setLineWidth(4));
-	io.addObj(new iio.ioLine(00,00,00,700).setLineWidth(4));
-	io.addObj(new iio.ioLine(400,400,400,700).setStrokeStyle('#0000EE').setLineWidth(8));
+	io.addObj(new iio.Line(00,00,800,00).setLineWidth(4));
+	io.addObj(new iio.Line(800,00,800,700).setLineWidth(4));
+	io.addObj(new iio.Line(00,700,800,700).setLineWidth(4));
+	io.addObj(new iio.Line(00,00,00,700).setLineWidth(4));
+	io.addObj(new iio.Line(400,400,400,700).setStrokeStyle('#0000EE').setLineWidth(8));
+}
+function drawCell(io, grid, coords) {
+	var cell = grid.cells[coords.x][coords.y];
+	if(Optional(cell.pion).isEmpty) {
+		if(!Optional(cell.ioObj).isEmpty) {
+			cell.ioObj.clearSelf(io.context);
+			cell.ioObj = null;
+		}
+	} else {
+		if(Optional(cell.ioObj).isEmpty) {
+			var cellPos = grid.getCellCenter(coords);
+			cell.ioObj = new iio.Circle(cellPos, 13).setFillStyle(cell.pion.couleur).setStrokeStyle('#101010').setLineWidth(3);
+			io.addObj(cell.ioObj);
+		}
+	}
+}
+function drawPions(io,grid) {
+	for(var y = 0; y < grid.R; ++y) {
+		for(var x= 0; x < grid.C; ++x) {
+			drawCell(io,grid, new iio.Vec(x,y));
+		}
+	}
+}
 
+function addPion(io, grid, cell, couleur) {
+	var pion = new Pion(couleur,false);
+	if(Optional(grid.cells[cell.x][cell.y].pion).isEmpty) {
+		grid.cells[cell.x][cell.y].pion = pion;
+		drawCell(io, grid, cell);
+		return true;
+	} else {
+		return false;
+	}
+}
+function Billabong(io) {
+	var grid = new iio.Grid(0,0,16,14,50); // posX,posY,width,height,cellSize
+	grid.setStrokeStyle('#201000');
+	grid.setLineWidth(2);
+	drawGrid(io,grid);
+	drawPions(io,grid);
 	io.canvas.addEventListener('mousedown',function(event) {
-		//console.log(grid.getCellAt(io.getEventPosition(event))); // Exemple de log
-		var cellPos = grid.getCellCenter(io.getEventPosition(event),true);
-		io.addObj(new iio.ioCircle(cellPos, 13).setFillStyle('#E00000').setStrokeStyle('#A00000').setLineWidth(3));
+		console.log("Add pion: " + addPion(io,grid,grid.getCellAt(io.getEventPosition(event)), couleurs.ROUGE));
 	});
 }
