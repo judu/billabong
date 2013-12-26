@@ -1,4 +1,9 @@
 /**
+ * Some utils that are not included in underscore
+ */
+if(typeof(_) === 'undefined') _ = {};
+
+/**
  * Variable globale qui définit les 8 cases sur lesquelles on n'a pas le
  * droit d'aller.
  **/
@@ -12,6 +17,77 @@ var billabong = {
 		y : 7
 	}
 };
+
+/**
+ * Create game instance:
+ * @param players: subset of couleurs: the colors of the players
+ */
+function Game(players, io, grid) {
+	this.players = players;
+	this.current = -1;
+	this.pions = 0;
+	this.grid = grid;
+	this.io = io;
+}
+
+Game.prototype.pionPerPlayer = 4;
+
+Game.prototype.nextPlayer = function() {
+	this.current = (this.current + 1) % this.players.length;
+	return this.players[this.current];
+};
+
+Game.prototype.setUp = function() {
+		var self = this;
+		function putPionOnClick(event) {
+			if(self.pions < (self.pionPerPlayer * self.players.length)){
+				//FIXME: test output of addPion
+				addPion(self.io,self.grid,self.grid.getCellAt(self.io.getEventPosition(event)), self.nextPlayer());
+				++self.pions;
+				if(self.pions >= (self.pionPerPlayer * self.players.length)) {
+					self.io.canvas.removeEventListener('click', putPionOnClick);
+					self.play();
+				}
+			} else {
+				console.log("Cannot add pion");
+				self.io.canvas.removeEventListener('click', putPionOnClick);
+				self.play();
+			}
+		}
+		if(this.pions <= (this.pionPerPlayer * this.players.length))
+			this.io.canvas.addEventListener('click',putPionOnClick);
+}
+
+Game.prototype.play = function() {
+	var self = this;
+	if(this.pions <= (this.pionPerPlayer * this.players.length)) {
+		this.io.canvas.addEventListener('click',function(event) {
+			if(typeof(self.reachablePlaces) !== 'undefined') {
+				// Remove reachable places from previous test.
+				_.each(self.reachablePlaces,function(circ) {
+					circ.clearSelf(self.io.context);
+					var vec = self.grid.getCellAt(circ.pos);
+					self.grid.cells[vec.x][vec.y].bg.clearSelf(self.io.context);
+					self.grid.cells[vec.x][vec.y].bg.draw(self.io.context);
+					redrawGrid(self.io,self.grid);
+				});
+			}
+			// Display possibilities if we clicked a pion.
+			var vec = self.grid.getCellAt(self.io.getEventPosition(event));
+			if(!isVide(self.grid,vec.x,vec.y)) {
+				var dests = getAllJumpDestinations(self.grid,vec);
+				var circles = _.map(dests,function(v) {
+					var rr = new iio.Circle(self.grid.getCellCenter(v), 13).setFillStyle('#EFEFEF').setStrokeStyle('#201000').setAlpha(0.5).setLineWidth(3);
+					return rr;
+				});
+				self.reachablePlaces = circles;
+				_.each(circles,function(circ) {
+					self.io.addObj(circ);
+				});
+			}
+		});
+	}
+}
 
 var couleurs = {
 	BLEU : "#005DFE",
@@ -32,11 +108,15 @@ function Direction(dx,dy,distance) {
 	this.distance = distance;
 }
 
+Direction.prototype.inc = function() {
+	return new Direction(this.dx,this.dy,this.distance +1);
+}
+
 function initialiseDirections() {
 	var dirs = [];
 	for(var x = -1; x <= 1; ++x) {
 		for(var y = -1; y <= 1; ++y) {
-			dirs.push(new Direction(x,y,0));
+			if(x !== 0 || y !== 0) dirs.push(new Direction(x,y,1));
 		}
 	}
 	return dirs;
@@ -67,18 +147,16 @@ function Pion(couleur,ruisseau) {
  *
  * Type : int -> int -> Direction -> Option[Direction]
  **/
-function cherchePremierPion(x,y,direction) {
-	//TODO prendre autour de (x,y), et agrandir la recherche jusqu'à
-	//trouver un pion ou ne plus pouvoir avancer.
-	var xtemp = x + (direction.dx * direction.distance);
-	var ytemp = y + (direction.dy * direction.distance);
-	if (isInterdite(xtemp, ytemp)){
+function cherchePremierPion(grid,vec,direction) {
+	var xtemp = vec.x + (direction.dx * direction.distance);
+	var ytemp = vec.y + (direction.dy * direction.distance);
+	if (isInterdite(grid,xtemp, ytemp)){
 		//STOP
 		return new None();
-	} else if (!isVide(xtemp,ytemp)) {
+	} else if (!isVide(grid,xtemp,ytemp)) {
 		return new Some(direction);
 	} else {
-		return cherchePremierPion(x,y, new Direction(direction.dx, direction.dy, direction.distance+1));
+		return cherchePremierPion(grid,vec, direction.inc());
 	}
 }
 
@@ -88,8 +166,8 @@ function cherchePremierPion(x,y,direction) {
  *
  * Type : int -> int -> bool
 **/
-function isInterdite(x,y){
-	return ((x<0 || y<0 || x>17 || y>15) || (x>=6 && x<=9 && y>=6 && y<=7));
+function isInterdite(grid,x,y){
+	return !(_.isNaN(x) || _.isNaN(y)) && ((x<0 || y<0 || x>=grid.C || y>=grid.R) || (x>=6 && x<=9 && y>=6 && y<=7));
 }
 
 /**
@@ -98,8 +176,8 @@ function isInterdite(x,y){
  *
  * Type : int -> int -> bool
 **/
-function isVide(x,y){
-	return (typeof(grid.cells[x][y].pion) === "undefined");
+function isVide(grid,x,y){
+	return (Optional(grid.cells[x][y].pion).isEmpty);
 }
 
 /**
@@ -111,22 +189,20 @@ function isVide(x,y){
  *	L'idée si possible serait de ressortir une liste de coordonnées
  *	atteignables par un saut.
  *
- *	Type : int -> int -> [Direction] -> [ioVec]
+ *	Type : ioVec -> Direction -> [ioVec]
  */
-function isSautPossible(x,y,pionsASauter) {
-	return pionsASauter.flatMap(function(d){
-		var xpion = x + (direction.dx * direction.distance);
-		var ypion = y + (direction.dy * direction.distance);
-		for(var a = 1; a <= d.distance; ++a) {
-			var xtemp = xpion + (direction.dx * a);
-			var ytemp = ypion + (direction.dy * a);
-			if (isInterdite(xtemp, ytemp) || !(isVide(xtemp,ytemp))){
-				//STOP
-				return new None();
-			}
+function isSautPossible(grid,vec,pionASauter) {
+	var xpion = vec.x + (pionASauter.dx * pionASauter.distance);
+	var ypion = vec.y + (pionASauter.dy * pionASauter.distance);
+	for(var a = 1; a <= pionASauter.distance; ++a) {
+		var xtemp = xpion + (pionASauter.dx * a);
+		var ytemp = ypion + (pionASauter.dy * a);
+		if (isInterdite(grid,xtemp, ytemp) || !(isVide(grid,xtemp,ytemp))){
+			//STOP
+			return new None();
 		}
-		return Some(new iio.Vec(xtemp,ytemp));
-	});
+	}
+	return new Some(new iio.Vec(xtemp,ytemp));
 }
 
 /**
@@ -167,18 +243,64 @@ function isLigneDroitePossible(coords1,coords2) {
  * saut. On a les cellules (un tableau) et les coordonnées de tous les
  * pions (peut-être avec celles des cases du billabong)
  *
- * Type : ioVec -> [[Object]] -> [ioVec]
+ * Type : ioVec -> iio.Grid -> [ioVec]
  **/
-function getSingleJumpDestinations(coordPion,cells,allPions) {
-	return initialiseDirections().flatMap(function(d) { return cherchePremierPion(coordPion.x,coordPion.y,d);}).flatMap(function(d) {return isSautPossible(coordPion.x,coordPion.y,d)});
+function getSingleJumpDestinations(grid,coordPion) {
+	return _.map(initialiseDirections(),function(d) {
+		return cherchePremierPion(grid,coordPion,d);
+	}).flatMap(function(d) {
+		return d.flatMap(function(dd) {
+			return isSautPossible(grid,coordPion,dd);
+		});
+	});
+}
+
+function uniqCoords(coords) {
+	return _.uniq(coords, function(co) {
+		var xstr = (co.x < 10 ? '0': '') + co.x;
+		var ystr = (co.y < 10 ? '0': '') + co.y;
+		return xstr + ystr;
+	});
+}
+
+function getAllJumpDestinations(grid, coordPion) {
+	var lastLength = 0;
+	var res = getSingleJumpDestinations(grid,coordPion);
+	var res2 = _.clone(res);
+	while(res.length > lastLength) {
+		lastLength = res.length;
+		res2 = uniqCoords(_.flatten(_.map(res2, function(co){return getSingleJumpDestinations(grid,co);})));
+		res = uniqCoords(res.concat(res2));
+	}
+	return uniqCoords(_.filter(_.map(initialiseDirections(),function(direction) {
+		return new iio.Vec(coordPion.x + (direction.dx * direction.distance),coordPion.y + (direction.dy * direction.distance));
+	}), function(coords) {
+		return !isInterdite(grid,coords.x,coords.y) && isVide(grid,coords.x,coords.y);
+	}).concat(res));
+}
+
+function redrawGrid(io,grid) {
+	if(typeof(io.eau) === 'undefined') {
+		grid.draw(io.context);
+		io.eau = new iio.Rect(400,350,200,100);
+		io.eau.setFillStyle('#000099');
+		io.eau.setStrokeStyle('#201000');
+		io.eau.setLineWidth(0);
+		io.addObj(io.eau);
+	} else {
+		io.eau.clearSelf(io.context);
+		grid.draw(io.context);
+		io.eau.draw(io.context);
+	}
+	io.addObj(new iio.Line(400,400,400,700).setStrokeStyle('#0000EE').setLineWidth(8));
 }
 
 function drawGrid(io,grid) {
 	io.addObj(grid);
-	var eau = new iio.Rect(400,350,200,100);
-	eau.setFillStyle('#000099');
-	eau.setStrokeStyle('#0000EE');
-	eau.setLineWidth(3);
+	fillCellsBg(io,grid);
+	redrawGrid(io,grid);
+}
+function fillCellsBg(io, grid) {
 	var color1 = 'rgba(61,40,25,0.8)';
 	var color2 = 'rgba(255,234,197,0.8)';
 	// Make it look like a chessboard.
@@ -190,18 +312,16 @@ function drawGrid(io,grid) {
 			} else {
 				x2 = x-1;
 			}
-			if(!(y >= 6 && y <= 7 && x >= 6 && x <= 9))
-				io.addObj(new iio.Rect(grid.getCellCenter(x,y,false),48).setFillStyle(color1));
-			if(x2 >= 0 && x2 < 16 && !(y >= 6 && y <= 7 && x >= 6 && x <= 9))
-				io.addObj(new iio.Rect(grid.getCellCenter(x2,y,false),48).setFillStyle(color2));
+			if(!(y >= 6 && y <= 7 && x >= 6 && x <= 9)) {
+				grid.cells[x][y].bg = new iio.Rect(grid.getCellCenter(x,y,false),48).setFillStyle(color1);
+				io.addObj(grid.cells[x][y].bg);
+			}
+			if(x2 >= 0 && x2 < 16 && !(y >= 6 && y <= 7 && x >= 6 && x <= 9)) {
+				grid.cells[x2][y].bg = new iio.Rect(grid.getCellCenter(x2,y,false),48).setFillStyle(color2);
+				io.addObj(grid.cells[x2][y].bg);
+			}
 		}
 	}
-	io.addObj(eau);
-	io.addObj(new iio.Line(00,00,800,00).setLineWidth(4));
-	io.addObj(new iio.Line(800,00,800,700).setLineWidth(4));
-	io.addObj(new iio.Line(00,700,800,700).setLineWidth(4));
-	io.addObj(new iio.Line(00,00,00,700).setLineWidth(4));
-	io.addObj(new iio.Line(400,400,400,700).setStrokeStyle('#0000EE').setLineWidth(8));
 }
 function drawCell(io, grid, coords) {
 	var cell = grid.cells[coords.x][coords.y];
@@ -227,6 +347,7 @@ function drawPions(io,grid) {
 }
 
 function addPion(io, grid, cell, couleur) {
+	//FIXME: do not permit to put pion right to the river.
 	var pion = new Pion(couleur,false);
 	if(Optional(grid.cells[cell.x][cell.y].pion).isEmpty) {
 		grid.cells[cell.x][cell.y].pion = pion;
@@ -236,13 +357,14 @@ function addPion(io, grid, cell, couleur) {
 		return false;
 	}
 }
+
+var game;
+
 function Billabong(io) {
 	var grid = new iio.Grid(0,0,16,14,50); // posX,posY,width,height,cellSize
 	grid.setStrokeStyle('#201000');
 	grid.setLineWidth(2);
 	drawGrid(io,grid);
-	drawPions(io,grid);
-	io.canvas.addEventListener('mousedown',function(event) {
-		console.log("Add pion: " + addPion(io,grid,grid.getCellAt(io.getEventPosition(event)), couleurs.ROUGE));
-	});
+	game = new Game([couleurs.BLEU,couleurs.ROUGE], io, grid);
+	game.setUp();
 }
