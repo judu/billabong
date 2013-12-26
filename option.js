@@ -24,6 +24,10 @@ None.prototype.map = function(f) {
 	return new None();
 }
 
+None.prototype.flatMap = function(f) {
+	return new None();
+}
+
 /**
  * Exécute f1 si None, f2(obj) si Some
  */
@@ -54,6 +58,18 @@ Some.prototype.map = function(f) {
 	return new Some(f(this.obj));
 }
 
+Some.prototype.flatMap = function(f) {
+	var res = f(this.obj);
+	if(typeof(res) != 'undefined' && (res.constructor === Some || res.constructor === None)) {
+		if(res.isEmpty)
+			return new None();
+		else
+			return res;
+	} else {
+		return new None();
+	}
+}
+
 /**
  * Applique f2 à l'objet encapsulé
  */
@@ -70,12 +86,12 @@ Some.prototype.isEmpty = false
 /**
  * [a] -> (a -> Option(b)) -> [b]
  */
-Array.prototype.flatMap = function(f) {
+Array.prototype.flatMap = function(iterator, context) {
 	var arr = [];
-	this.foreach(function(e) {
-		var res = f(e);
-		if(typeof(res.isEmpty) !== 'undefined' && !res.isEmpty) {
-			arr.push(res);
+	_.each(this, function(value, index, list) {
+		var res = iterator.call(context, value, index, list);
+		if(typeof(res) !== 'undefined' && (res.constructor === Some || res.constructor === None) && !res.isEmpty) {
+			arr.push(res.obj);
 		}
 	});
 	return arr;
