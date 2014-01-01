@@ -1,0 +1,40 @@
+line.separateur {
+	stroke: #201000;
+	stroke-width: 2;
+}
+
+line.river {
+	stroke-width: 6;
+	stroke: #000099;
+	opacity: 1;
+}
+
+rect {
+	stroke-width: 0;
+}
+
+rect.obscur {
+	fill: rgba(61,40,25,0.8);
+}
+rect.clair {
+	fill: rgba(255,234,197,0.8);
+}
+rect.accessible {
+	fill: rgba(255,180,220,0.8);
+}
+
+circle.pion {
+	stroke-width: 2;
+	stroke: #101010;
+	opacity: 0.8;
+}
+circle.pion.active {
+	opacity: 1;
+}
+
+circle.accessible {
+	stroke-width: 3;
+	stroke: #201000;
+	fill: #EFEFEF;
+	opacity: 0.5;
+}
