@@ -198,7 +198,7 @@
 					return scoreDeplacement(coordPion,coords);
 				}).concat(res));
 			if(coordPion.passed) {
-				res = _.reject(res, function(c) { return c.score < 0;});
+				res = _.reject(res, function(c) { return c.score < (coordPion.score ? coordPion.score : 0);});
 			}
 			return res;
 		}
