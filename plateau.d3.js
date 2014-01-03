@@ -34,10 +34,11 @@
 		function movePion(destDat,pionDat,pionElm) {
 			// "this" is the clicked square
 			if(game.move(pionDat,destDat)){
-				if(destDat.score > 0) //TODO: check that pion is already passed to let it win.
+				if(destDat.score > 0)
 					destDat.passed = true;
-				else
+				else if(destDat.score === pionDat.score)
 					destDat.passed = pionDat.passed;
+				else if(destDat.score < pionDat.score) destDat.passed = false;
 
 				destDat.pion = pionDat.pion;
 				d3.select(pionElm).datum(destDat)
