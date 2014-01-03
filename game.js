@@ -106,14 +106,9 @@
 			return function(x) { return a*x + b;};
 		}
 
-		var riviereCoords = [];
-		for(var ry = 8; ry < rows; ++ry) {
-			riviereCoords.push(new Vec(7,ry));
-		}
-
 		function passeRiviere(orig,dest) {
 			var f = getAffine(orig,dest);
-			return _.some(riviereCoords, function(c) { return c.y === f(c.x);});
+			return f(7) > 7;
 		}
 
 		function scoreDeplacement(orig,dest) {
