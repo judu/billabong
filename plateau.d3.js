@@ -59,7 +59,7 @@
 			}
 			unhighlight();
 			if(game.lastPlayer().hasFinished()) {
-				d3.select('circle.pion').on('click', null);
+				pionGroup.selectAll('circle.pion').on('click', null);
 				alert('Player ' + game.lastPlayer().color + ' won.');
 			}
 		}
