@@ -4,6 +4,25 @@
 		this.y = y;
 	}
 
+	function Player(color, numPions) {
+		this.color = color;
+		this.pionsEnJeu = numPions;
+		this.finished = false;
+	}
+
+	Player.prototype.addPion = function() {
+		++this.pionsEnJeu;
+	};
+
+	Player.prototype.removePion = function() {
+		--this.pionsEnJeu;
+		if(this.pionsEnJeu <= 0) this.finished = true;
+	};
+
+	Player.prototype.hasFinished = function() {
+		return this.finished;
+	}
+
 	/**
 	 * Constructeur pour les objets de type Direction
 	 * (int,int,int)
@@ -22,10 +41,10 @@
 		var cols = 16, rows = 14;
 
 		function Game(players) {
-			this.players = players;
 			this.current = 0;
 			this.pions = 0;
-			this.maxPionPerPlayer = 3;
+			this.maxPionPerPlayer = 5;
+			this.setPlayers(players);
 			this.cases = [];
 			for(var x = 0; x < cols; ++x) {
 				this.cases[x] = [];
@@ -35,6 +54,11 @@
 			}
 		}
 
+		Game.prototype.setPlayers = function(players) {
+			var self = this;
+			this.players = _.map(players, function(color) {return new Player(color,self.maxPionPerPlayer);});
+		}
+
 		Game.prototype.currentPlayer = function() {
 			return this.players[this.current];
 		}
@@ -42,6 +66,11 @@
 		Game.prototype.nextPlayer = function() {
 			this.current = (this.current + 1) % this.players.length;
 			return this.players[this.current];
+		}
+
+		Game.prototype.lastPlayer = function() {
+			var last = (this.current - 1) % this.players.length;
+			return this.players[last];
 		}
 
 
@@ -226,7 +255,7 @@
 
 		Game.prototype.addPion = function(x,y) {
 			if(this.isVide(x,y)) {
-				this.setPion(x,y,this.currentPlayer());
+				this.setPion(x,y,this.currentPlayer().color);
 				this.nextPlayer();
 				++this.pions;
 				return this.getPion(x,y);
@@ -236,6 +265,10 @@
 			if(this.isVide(dest.x,dest.y)) {
 				this.setPion(dest.x,dest.y,this.getPion(orig.x,orig.y));
 				this.removePion(orig.x,orig.y);
+				if(dest.score > 1) {
+					this.currentPlayer().removePion();
+					this.removePion(dest.x,dest.y);
+				}
 				this.nextPlayer();
 				return true;
 			} else return false;

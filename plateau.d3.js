@@ -38,13 +38,29 @@
 					destDat.passed = true;
 				else
 					destDat.passed = pionDat.passed;
-				destDat.score = 0;
+
 				destDat.pion = pionDat.pion;
 				d3.select(pionElm).datum(destDat)
 					.attr('cx', function(d){return d.cx})
 					.attr('cy', function(d){return d.cy});
+
+				if(destDat.score > 1){
+					d3.select(pionElm).transition()
+						.duration(500)
+						.style('fill','#BBBBBB')
+						.attr('r', 20)
+						.transition()
+						.duration(1000)
+						.style('fill', '#FFFFFF')
+						.attr('r', 0)
+						.each('end', function() { d3.select(this).remove();});
+				}
 			}
 			unhighlight();
+			if(game.lastPlayer().hasFinished()) {
+				d3.select('circle.pion').on('click', null);
+				alert('Player ' + game.lastPlayer().color + ' won.');
+			}
 		}
 
 		function accessibleClickCallback(dest, pionDat, elm) {
@@ -54,7 +70,7 @@
 		function displayAccessible(datum, index) {
 			// Display possibilities if we clicked a pion.
 			if(!game.stillSetUp()) {
-				if(game.currentPlayer() === datum.pion) {
+				if(game.currentPlayer().color === datum.pion) {
 					var self = this;
 					unhighlight();
 					d3.select(self).classed('active',true).attr('filter', 'url(#shadow)');
@@ -179,7 +195,7 @@
 
 		plateau.players = function(_) {
 			if(!arguments.length) return game.players;
-			game.players = _;
+			game.setPlayers(_);
 			return plateau;
 		}
 
