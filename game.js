@@ -1,4 +1,11 @@
 (function(){
+	/**
+	 * Hack the modulus operator, cause it's shit
+	 */
+	Number.prototype.mod = function(n) {
+		return ((this%n)+n)%n;
+	}
+
 	function Vec(x,y) {
 		this.x = x;
 		this.y = y;
@@ -64,12 +71,12 @@
 		}
 
 		Game.prototype.nextPlayer = function() {
-			this.current = (this.current + 1) % this.players.length;
+			this.current = (this.current + 1).mod(this.players.length);
 			return this.players[this.current];
 		}
 
 		Game.prototype.lastPlayer = function() {
-			var last = (this.current - 1) % this.players.length;
+			var last = (this.current - 1).mod(this.players.length);
 			return this.players[last];
 		}
 
