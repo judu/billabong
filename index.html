@@ -15,7 +15,6 @@
 				JAUNE : "#FEDC00"
 			}
 			window.addEventListener('load', function() {
-					console.log('Start up');
 					var plateau = d3.plateau().players([couleurs.BLEU,couleurs.ROUGE]);
 					var board = d3.select('#board');
 					d3.select('#board').call(plateau);
